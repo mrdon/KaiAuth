@@ -112,6 +112,15 @@ window.addEventListener('DOMContentLoaded', function () {
             console.error(this.error);
         }
     }
+    function base64ToArrayBuffer(base64) {
+        var binary_string = window.atob(base64);
+        var len = binary_string.length;
+        var bytes = new Uint8Array(len);
+        for (var i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
     // key
     window.addEventListener('keydown', function (e) {
         switch (e.key) {
@@ -133,28 +142,51 @@ window.addEventListener('DOMContentLoaded', function () {
 				})
 				qrcode.onsuccess = function () {
 					qrcodeContent = this.result;
-                    gaDetail = parseURI(qrcodeContent);
-                    if(gaDetail == null){
-                        alert(translate('valid-qrcode'));
-                    }else{
-                        var totpName = gaDetail.label.account;
-                        if(gaDetail.label.issuer){
-                            totpName = gaDetail.label.issuer + ':' + totpName;
-                        }else{
-                            if(gaDetail.query.hasOwnProperty('issuer')){
-                                totpName = gaDetail.query.issuer + ':' + totpName;
+                    if (qrcodeContent != null && qrcodeContent.startsWith("otpauth-migration")) {
+                        let qrData = qrcodeContent.split("data=")[1];
+
+                        let msg = MigrationPayload.read(new Pbf(base64ToArrayBuffer(decodeURIComponent(qrData))));
+
+                        msg.otp_parameters.forEach(function(otp) {
+                            var label = otp.issuer + ": " + otp.name
+                            if (otp.name.indexOf(":") > -1) {
+                                label = otp.issuer + ": " + otp.name.substr(otp.name.indexOf(":") + 1, otp.name.length);
                             }
+                            var item = {
+                                id: generateNewID(),
+                                name: label,
+                                secret: base32.encode(otp.secret)
+                            }
+                            authcodes.push(item);
+                            saveList();
+                            init();
+                            selectIndex = authcodes.length - 1;
+                            selectItemByIndex();
+                        });
+                    } else {
+                        gaDetail = parseURI(qrcodeContent);
+                        if(gaDetail == null){
+                            alert(translate('valid-qrcode'));
+                        }else{
+                            var totpName = gaDetail.label.account;
+                            if(gaDetail.label.issuer){
+                                totpName = gaDetail.label.issuer + ':' + totpName;
+                            }else{
+                                if(gaDetail.query.hasOwnProperty('issuer')){
+                                    totpName = gaDetail.query.issuer + ':' + totpName;
+                                }
+                            }
+                            var item = {
+                                id: generateNewID(),
+                                name: totpName,
+                                secret: gaDetail.query.secret
+                            }
+                            authcodes.push(item);
+                            saveList();
+                            init();
+                            selectIndex = authcodes.length - 1;
+                            selectItemByIndex();
                         }
-                        var item = {
-                            id: generateNewID(),
-                            name: totpName,
-                            secret: gaDetail.query.secret
-                        }
-                        authcodes.push(item);
-                        saveList();
-                        init();
-                        selectIndex = authcodes.length - 1;
-                        selectItemByIndex();
                     }
 				}
                 break;

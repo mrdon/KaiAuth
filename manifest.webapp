@@ -14,7 +14,7 @@
   },
   "origin": "app://kaiauth.zjyl1994.com",
   "type": "privileged",
-		"permissions": {
+  "permissions": {
     "video-capture":{},
 		"device-storage:sdcard": {
 			"description": "Required for import or export data",
